@@ -1,0 +1,42 @@
+
+
+(define (parse-linelist tokens)
+  (match tokens
+    [(list) '()]
+    [(list '$ '$) '()]
+    [(_ rest) (cons (parse-line tokens) (parse-linelist rest))]))
+
+(define (parse-line tokens)
+  (match tokens
+    [(list (list idx stmt linetails ...) _)
+     (cons idx (cons stmt (parse-linetails linetails)))]))
+
+(define (parse-linetails tokens)
+  (match tokens
+    [(list) '()]
+    [(list _ (list stmt . tail) rest) (cons stmt (parse-linetails tail))]
+    [(list _ _ rest) (parse-linetails rest)]))
+
+(define (parse-expr tokens)
+  (define (parse-etail tokens)
+    (match tokens
+      [(list '+ rest) (cons '+ (parse-expr rest))]
+      [(list '- rest) (cons '- (parse-expr rest))]
+      [(list '= rest) (cons '= (parse-expr rest))]
+      [_ '()]))
+   (match tokens
+    [(list (regexp #px"[a-zA-Z]+") tail) (cons 'id (parse-etail tail))]
+    [(list (regexp #px"[+-]?[0-9]+") tail) (cons 'num (parse-etail tail))]
+    [(list '(' rest) (cons 'expr (cons (parse-expr rest) (parse-etail (cdr (memq ')' rest)))))]))
+  (define (parse-stmt tokens)
+  (match tokens
+    [(list id '= rest) (cons 'assign (cons id (cons (parse-expr rest) '())))]
+    [(list 'if expr 'then stmt rest) (cons 'if (cons (parse-expr expr) (cons (parse-stmt stmt) '())))]
+    [(list 'read id) (cons 'read (list id))]
+    [(list 'write expr) (cons 'write (list (parse-expr expr)))]
+    [(list 'goto idx) (cons 'goto (list idx))]
+    [(list 'return) (list 'return)]))
+  (define (parse input)
+   (define tokens (regexp-split #px"\\s+" input))
+   (parse-tokens tokens))
+    
